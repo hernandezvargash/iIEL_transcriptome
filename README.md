@@ -6,7 +6,7 @@ Transcriptome analysis of mouse gamma-delta T cells of different origin
 
 Whole genome expression was studied in intestinal intraepithelial (IEL) TCR gamma delta cells, and 3 different subsets of TCR gamma delta cells (Type1,  Type naive-like and Type 17) that are present in lymph nodes. RNA was extracted in triplicates of each condition and hybridized into expression microarrays (genechip 2.0 ST from Affymetrix). The resulting CEL files were imported using the "oligo" package [1], and all downstream analyses were performed using this and other R/Bioconductor packages, R version 4.1.2 (2021-11-01) [https://cran.r-project.org/ ; http://www.bioconductor.org/]. The Robust Multichip Average (RMA) algorithm from the "oligo" package was used for normalization, followed by inspecion using principal component analysis (PCA) with "ggplot2" functions [2]. Differential expression was performed using "limma" functions to fit a linear model and contrasts for all pairwise comparisons [3]. Significant probes (FDR-adjusted p value < 0.05) were annotated with the "annotation mogene20sttranscriptcluster.db" package [4], and visualized with "EnhancedVolcano" for volcano plots [5], "eulerr" for genelist overlaps [6], and "NMF" for annotated supervised and unsupervised heatmaps [7]. Geneset enrichment analyses (GSEA) were performed using function from the packages "clusterprofiler" [8,9], "enrichplot" [10], "DOSE" [11], "ReactomePA" [12], "msigdbr" [13], and "fgsea" [14].
 
-All code is available in GitHub and all sequencing data has been uploaded into the GEO repository, with Accession number: ...
+Data has been uploaded into the GEO repository, with Accession number GSE198703.
 
 ---------------------------------
 

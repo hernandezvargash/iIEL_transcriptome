@@ -1,8 +1,7 @@
 
 # title -------------------------------------------------------------------
 
-# Analyses for Helios paper
-# re-edited on 251120 / 280222
+# Transcriptome analysis of mouse gamma-delta T cells of different origin
 
 rm(list=ls())
 

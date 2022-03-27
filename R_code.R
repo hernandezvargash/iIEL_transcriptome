@@ -42,6 +42,7 @@ suppressPackageStartupMessages({
   library(ReactomePA)
   library(msigdbr)
   library(fgsea)
+  library(pathfindR)
   library('EnhancedVolcano')
   
 })
@@ -252,27 +253,30 @@ write.xlsx(top,file="Type1_vs_All.xlsx")
 
 
 # volcano IEL vs All ------------------------------------------------------
+# https://www.bioconductor.org/packages/release/bioc/vignettes/EnhancedVolcano/inst/doc/EnhancedVolcano.html
 
 rm(list=ls())
 
 top <- read.csv(file="IEL_vs_All_all.probes.csv", row.names = 1)
 head(top)
-# https://www.bioconductor.org/packages/release/bioc/vignettes/EnhancedVolcano/inst/doc/EnhancedVolcano.html
+sel <- read.csv(file = "IEL_vs_All_volcano_selected.csv")
+head(sel)
 EnhancedVolcano(top,
                 lab = top$Symbol,
                 x = 'logFC',
                 y = 'P.Value',
-                pCutoff = 1e-05,
+                pCutoff = 1e-03,
                 FCcutoff = 0.5,
                 pointSize = 3.0,
                 labSize = 6.0,
                 legendPosition = "top",
-#                selectLab = c("Gzmb","Cd55"),
+                selectLab = sel$Symbol,
                 drawConnectors = T,
                 boxedLabels = T,
                 title = "Volcano plot",
                 subtitle = bquote(italic("IELs versus All"))
                 )
+
 
 
 # Overlaps ----------------------------------------------------------
@@ -329,22 +333,18 @@ table(IEL$logFC > 0)
 
 
 
-# Heatmaps ----------------------------------------------------------------
+# Main heatmap ----------------------------------------------------------------
 
 rm(list=ls())
 
 IEL <- read.csv("IEL_vs_All.csv", row.names = 1)
 head(IEL)
-Naive.like <- read.csv("Naive.like_vs_All.csv", row.names = 1)
-T17 <- read.csv("T17_vs_All.csv", row.names = 1)
-T1 <- read.csv("Type1_vs_All.csv", row.names = 1)
 
 load("eset.RData")
 exprs <- exprs(eset)
 
 # for GEO submission (rma-normalized data)
 # exprs[1:5,1:10]
-write.csv
 
 pData <- pData(eset)
 
@@ -368,10 +368,12 @@ aheatmap(exprs, scale = "row", distfun = "euclidean",
          main="DEGs\nall cell subtypes")
 
 
-# heatmap with selected genes
+
+# Heatmaps with selected genes ----------------------------------------------------------------
+
+rm(list=ls())
 
 load("eset.RData")
-
 eset2 <- eset[, c(1:8,12,9:11)]
 exprs <- exprs(eset2)
 pData <- pData(eset2)
@@ -381,117 +383,76 @@ ID     <- featureNames(eset2) # for all the dataset
 Symbol <- as.character(lookUp(ID, annodb, "SYMBOL"))
 Name   <- as.character(lookUp(ID, annodb, "GENENAME"))
 Entrez <- as.character(lookUp(ID, annodb, "ENTREZID"))
-#my_frame <- data.frame(exprs(eset))
-my_frame1 <- data.frame(exprs)
-my_frame1$Symbol<-Symbol
-my_frame1$Name<-Name
-my_frame1$Entrez<-Entrez
-head(my_frame1)
-tail(my_frame1)
 
-genelist <- read.csv("genelist_Fig2.csv", header = T)
+rownames(exprs) <- Symbol
+colnames(exprs) <- paste0(pData$group, ".", letters[1:3])
+head(exprs)
+
+genelist <- read.csv("genelists_heatmaps.csv", header = T)
 head(genelist)
 
-setdiff(genelist$Fig2A, my_frame1$Symbol)
-my_frame2 <- my_frame1[my_frame1$Symbol%in%genelist$Fig2A, ]
-rownames(my_frame2) <- my_frame2$Symbol
-my_frame2 <- my_frame2[, 1:12]
-my_frame2 <- my_frame2[genelist$Fig2A, ]
-head(my_frame2)
-
-# Specify colors
-
-#classvecCol <- brewer.pal(8, "Dark2")
-annRow2 <- c(rep("Transcription Factor", 41), rep("Chemokine, Chemokine Receptor", 13))
-
-Var1 <- viridis(4)
-names(Var1) <- levels(factor(pData$group))
-ann_colors = list(group = Var1)
-
-Var2 <- rainbow(10)[1:2]
-names(Var2) <- levels(factor(annRow2))
-
-ann_colors = list(group = Var1, category = Var2)
-
-hm1 <- aheatmap(my_frame2, scale = "row", distfun = "euclidean",
+# Figure 3
+sel.genes <- intersect(str_to_title(genelist$Fig3A.NK_Treg), rownames(exprs))
+sel.exprs <- exprs[sel.genes, ]
+head(exprs)
+classvecCol <- brewer.pal(8, "Dark2")
+group.colors <- c("#BABABA", "darkorange", "#1F78B4", "#66A61E")
+#annRow2 <- c(rep("Transcription Factor", 41), rep("Chemokine, Chemokine Receptor", 13))
+hm1 <- aheatmap(sel.exprs, scale = "row", distfun = "euclidean",
          Rowv = NA, Colv = NA,
          cellwidth = 12, cellheight = 13, treeheight = 20,
-         annCol = list(group = pData$group), annColors = ann_colors,
-         annRow = list(category = annRow2),
+         annCol = list(group = pData$group), annColors = list(group.colors),
+#         annRow = list(category = annRow2),
          annLegend = T, fontsize = 12, cexRow = 1, cexCol = 1,
          main="")
 
-setdiff(genelist$Fig2B, my_frame1$Symbol)
-#setdiff("14127", my_frame1$Entrez)
-my_frame3 <- my_frame1[my_frame1$Symbol%in%genelist$Fig2B, ]
-rownames(my_frame3) <- my_frame3$Symbol
-my_frame3 <- my_frame3[, 1:12]
-my_frame3 <- my_frame3[genelist$Fig2B, ]
-my_frame3 <- na.omit(my_frame3)
-head(my_frame3)
-annRow3 <- c(rep("Signal_Receptor", nrow(my_frame3)))
-Var3 <- rainbow(10)[3:4]
-names(Var3) <- levels(factor(annRow3))
-ann_colors2 = list(group = Var1, category = Var3)
-hm2 <- aheatmap(my_frame3, scale = "row", distfun = "euclidean",
-         Rowv = NA, Colv = NA,
-         cellwidth = 12, cellheight = 13, treeheight = 20,
-         annCol = list(group = pData$group), annColors = ann_colors2,
-         annRow = list(category = annRow3),
-         annLegend = T, fontsize = 12, cexRow = 1, cexCol = 1,
-         main="")
-
-opar <- par(mfrow=c(1,2))
-
-par(opar)
-
-
-setdiff(genelist$Supp, my_frame1$Symbol)
-my_frame4 <- my_frame1[my_frame1$Symbol%in%genelist$Supp, ]
-rownames(my_frame4) <- my_frame4$Symbol
-my_frame4 <- my_frame4[, 1:12]
-my_frame4 <- my_frame4[genelist$Supp, ]
-my_frame4 <- na.omit(my_frame4)
-head(my_frame4)
-annRow4 <- c(rep("Signal_Receptor", nrow(my_frame4)))
-Var4 <- rainbow(10)[3:4]
-names(Var4) <- levels(factor(annRow4))
-ann_colors3 = list(group = Var1, category = Var4)
-hm3 <- aheatmap(my_frame4, scale = "row", distfun = "euclidean",
-                Rowv = NA, Colv = NA,
-                cellwidth = 12, cellheight = 13, treeheight = 20,
-                annCol = list(group = pData$group), annColors = ann_colors3,
-                annRow = list(category = annRow4),
-                annLegend = T, fontsize = 12, cexRow = 1, cexCol = 1,
-                main="")
-
-
-genelist$NK_Treg <- str_to_title(genelist$NK_Treg)
+# Figure 4
 head(genelist)
-setdiff(genelist$NK_Treg, my_frame1$Symbol)
-# "Bcl2l11" "Cd244"   "Dnajc1"  "Ctla4"   ""
-my_frame5 <- my_frame1[my_frame1$Symbol%in%genelist$NK_Treg, ]
-rownames(my_frame5) <- my_frame5$Symbol
-my_frame5 <- my_frame5[, 1:12]
-my_frame5 <- my_frame5[genelist$NK_Treg, ]
-my_frame5 <- na.omit(my_frame5)
-head(my_frame5)
-annRow5 <- c(rep("NK_Signature", 23), rep("Treg_Signature", 7))
-Var5 <- rainbow(10)[5:6]
-names(Var5) <- levels(factor(annRow5))
-ann_colors4 = list(group = Var1, category = Var5)
-hm3 <- aheatmap(my_frame5, scale = "row", distfun = "euclidean",
+sel.genes <- intersect(str_to_title(genelist$Fig4A), rownames(exprs))
+sel.exprs <- exprs[sel.genes, ]
+head(sel.exprs)
+hm1 <- aheatmap(sel.exprs, scale = "row", distfun = "euclidean",
                 Rowv = NA, Colv = NA,
                 cellwidth = 12, cellheight = 13, treeheight = 20,
-                annCol = list(group = pData$group), annColors = ann_colors4,
-                annRow = list(category = annRow5),
+                annCol = list(group = pData$group), annColors = list(group.colors),
                 annLegend = T, fontsize = 12, cexRow = 1, cexCol = 1,
                 main="")
 
+# Figure 5
+head(genelist)
+sel.genes <- intersect(str_to_title(genelist$Fig5A), rownames(exprs))
+sel.exprs <- exprs[sel.genes, ]
+head(sel.exprs)
+hm1 <- aheatmap(sel.exprs, scale = "row", distfun = "euclidean",
+                Rowv = NA, Colv = NA,
+                cellwidth = 12, cellheight = 13, treeheight = 20,
+                annCol = list(group = pData$group), annColors = list(group.colors),
+                annLegend = T, fontsize = 12, cexRow = 1, cexCol = 1,
+                main="")
 
-opar <- par(mfrow=c(1,2))
+# Figure Supp1
+head(genelist)
+sel.genes <- intersect(str_to_title(genelist$Supp.1), rownames(exprs))
+sel.exprs <- exprs[sel.genes, ]
+head(sel.exprs)
+hm1 <- aheatmap(sel.exprs, scale = "row", distfun = "euclidean",
+                Rowv = NA, Colv = NA,
+                cellwidth = 12, cellheight = 13, treeheight = 20,
+                annCol = list(group = pData$group), annColors = list(group.colors),
+                annLegend = T, fontsize = 12, cexRow = 1, cexCol = 1,
+                main="")
 
-par(opar)
+# Figure Supp2
+head(genelist)
+sel.genes <- intersect(str_to_title(genelist$Supp.2), rownames(exprs))
+sel.exprs <- exprs[sel.genes, ]
+head(sel.exprs)
+hm1 <- aheatmap(sel.exprs, scale = "row", distfun = "euclidean",
+                Rowv = NA, Colv = NA,
+                cellwidth = 12, cellheight = 13, treeheight = 20,
+                annCol = list(group = pData$group), annColors = list(group.colors),
+                annLegend = T, fontsize = 12, cexRow = 1, cexCol = 1,
+                main="")
 
 
 
@@ -642,6 +603,41 @@ plotEnrichment(msigdbr_list[["GOLDRATH_EFF_VS_MEMORY_CD8_TCELL_DN"]],
 df <- apply(fgsea.sel,2,as.character)
 
 write.csv(df, "MSIGDB_IEL.vs.All.csv")
+
+
+
+
+
+# TF motif/target enrichment ----------------------------------------------------------------------
+
+# prepared symbols genelist for IEL.vs.All, up and down separately, and saved as tab delimited for HOMER
+
+rm(list=ls())
+
+top <- read.csv(file="IEL_vs_All_all.probes.csv", row.names = 1)
+head(top)
+
+input_df <- top[, c(7,1,5)]
+head(input_df)
+
+# get gene lists
+gsets_list <- get_gene_sets_list(source = "MSigDB",
+                                 species = "Mus musculus",
+                                 collection = "C3",
+                                 subcollection = "TFT:GTRD") # alternatively use "TFT:TFT_Legacy"
+length(gsets_list)
+lapply(gsets_list, length)
+head(gsets_list)[[1]][100]
+head(gsets_list)[[2]][280]
+
+output_df <- run_pathfindR(input_df, gene_sets = "Custom", custom_genes = gsets_list[[1]], custom_descriptions = gsets_list[[2]])
+head(output_df)
+dim(output_df)
+
+write.csv(output_df, "pathfindR.output.csv")
+
+
+
 
 
 

@@ -3,7 +3,7 @@
 
 ## R code corresponding to the article:
 
-**Common and Exclusive Features of Intestinal Intraepithelial gamma-delta T Cells and Other gamma delta T Cell Subsets**, by Apostol K. Apostolov, Miriame Hamani, Hector Hernandez-Vargas, Ramdane Igalouzene, Alexandre Guyennon, Olivier Fesneau, Julien C. Marie, and Saïdi Mhoma Soudja.
+**Common and Exclusive Features of Intestinal Intraepithelial gamma-delta T Cells and Other gamma delta T Cell Subsets**, by Apostol K. Apostolov, Miriame Hamani, Hector Hernandez-Vargas, Ramdane Igalouzene, Alexandre Guyennon, Olivier Fesneau, Julien C. Marie, and Saïdi M'homa Soudja.
 *Tumor Escape Resistance Immunity Department, Cancer Research Center of Lyon, UMR INSERM 1052, CNRS 5286, Universite Claude Bernard Lyon I, Centre Leon Berard, Lyon, France*
 
 

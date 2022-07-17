@@ -9,7 +9,7 @@ rm(list=ls())
 # libraries ---------------------------------------------------------------
 
 
-setwd("~/Dropbox/BioInfo/Lab/Helios")
+setwd()
 dir()
 
 suppressPackageStartupMessages({
@@ -52,7 +52,7 @@ suppressPackageStartupMessages({
 # loading -----------------------------------------------------------------
 
 
-filenames <- list.files("/mnt/sdb/projects/RNAseq/Saidi_Affy_2017/raw", pattern="CEL", recursive = T, full.names = T)
+filenames <- list.files("~/raw", pattern="CEL", recursive = T, full.names = T)
 cel<-read.celfiles(filenames)
 
 ID <- str_sub(filenames, 46, -5)
@@ -369,7 +369,7 @@ aheatmap(exprs, scale = "row", distfun = "euclidean",
 
 
 
-# Heatmaps with selected genes ----------------------------------------------------------------
+# Heatmaps with selected genelists ----------------------------------------------------------------
 
 rm(list=ls())
 
@@ -652,211 +652,6 @@ head(output_df)
 dim(output_df)
 
 write.csv(output_df, "pathfindR.output.csv")
-
-
-
-
-# E-GEOD-68009 ------------------------------------------------------------
-
-# as described in ArrayExpress:
-
-## (1) Total colonic and splenic Foxp3+ Treg comparison: 
-# Lymphocytes were isolated from colonic lamina propria and spleens of Foxp3-ires-GFP mice, where GFP reports Foxp3 expression. 
-# TCRb+CD4+GFP+ cells were double sorted into Trizol.
-
-## (2) Colonic Rorγ+ and Rorγ- Treg comparison: 
-# Foxp3-ires-Thy1.1 reporter mice were crossed to Rorc-GFP reporter mice to generate mice that report both Foxp3 and Rorγ expression. 
-# Rorγ+Foxp3+ Tregs (TCRb+CD4+Thy1.1+GFP+) and Rorγ-Foxp3+ Tregs (TCRb+CD4+Thy1.1+GFP-) from colonic lamina propria were double sorted into Trizol.
-# To reduce variability and increase cell number, cells from multiple mice were pooled for sorting and at least three replicates were generated for all groups. 
-# RNA from 1.5-3.0 x104 cells was amplified, labeled and hybridized to Affymetrix Mouse Gene 1.0 ST Arrays.
-
-# GSE68009
-
-
-
-
-
-
-
-
-
-
-
-
-setwd("~/Bureau/EpiLandscape/wetransfer-40889c")
-
-# Affymetrix Mouse Gene 1.0 ST Arrays
-
-setwd("~/Bureau/EpiLandscape/wetransfer-40889c/E-GEOD-68009.raw.1")
-dir()
-# oligo:::getCelChipType("GSM1660961_EA07068_235541_MOGENE-1_0-ST-V1_TR_5CO-LPSPF.CEL", TRUE)
-# "MoGene-1_0-st-v1"
-
-#cRNA <- read.delim("cRNA_Saidi_pico_131216.txt")
-#head(cRNA)
-
-library(oligo)
-filenames <- dir(pattern="CEL")
-cel2<-read.celfiles(filenames)
-sampleNames(cel2)
-cel2b <- cel2[, -10]
-sampleNames(cel2b) <- substr(sampleNames(cel2b), 44, 78)
-sampleNames(cel2b)
-
-library(minfi)
-group<-c(rep("Treg_colon_RORneg",3), rep("Treg_colon_RORpos",3), rep("Treg_colon",3), rep("Treg_spleen",3))
-pData<-pData(cel2b)
-pData$group<-group
-head(pData)
-
-par(mar=c(12,4,4,4))
-boxplot(cel2b, which="all", main="raw data", las=2)
-hist(cel2b,which="all",main="raw data")
-par(mar=c(8,6,4,6))
-mdsPlot(exprs(cel2b),numPositions=1000,sampGroups=pData$group,
-        legendPos="topright",legendNCol=1, sampNames=pData$group,
-        main="MDS raw data
-        1000 most variable positions")
-library(wateRmelon)
-plotSampleRelation(exprs(cel2b), subset = 10000, method = "cluster",
-                   main= "Raw data
-                   Sample relations based on 10000 selected genes")
-
-eset2<-rma(cel2b)
-exprs<-exprs(eset2)
-dim(exprs) # 35556 genes and 12 samples
-
-MAplot(eset2[,1:4],cex=1)
-boxplot(eset2,main="after RMA")
-hist(eset2,main="after RMA")
-mdsPlot(exprs,numPositions=1000,sampGroups=pData$group,
-        legendPos="topright",legendNCol=1, sampNames=pData$group,
-        main="MDS after RMA
-        1000 most variable positions")
-plotSampleRelation(exprs, subset = 10000, method = "cluster",
-                   main= "After RMA
-                   Sample relations based on 10000 selected genes")
-
-pData(eset2)<-pData
-save(eset2,file="eset_Tregs.RData")
-
-
-
-
-load("~/Bureau/EpiLandscape/wetransfer-40889c/E-GEOD-68009.raw.1/eset_Tregs.RData")
-
-library(limma)
-library(qqman)
-
-# Model 1: Treg Spleen vs. Colon
-
-pData <- pData(eset2)
-exprs <- exprs(eset2)
-mod<-model.matrix(~as.factor(group),data=pData)
-fit = lmFit(exprs,mod)
-# colnames(fit)
-contrast.matrix<-c(0,0,0,1) # Treg spleen vs. colon
-fitContrasts = contrasts.fit(fit,contrast.matrix)
-eb = eBayes(fitContrasts)
-top<-topTable(eb, adjust="BH",number=100000, p.value=0.05, lfc=1)
-head(top)
-lmPvals = sample(eb$p.value,10000); qq(lmPvals)
-chisq <- qchisq(1-eb$p.value,1) # Calculating ChiSq values
-lmbd=median(chisq)/qchisq(0.5,1) # Calculating Lambda
-mtext(paste("model= ~as.factor(group)"), side=3, line=-2, at=1, cex=1)
-mtext(expression(paste(lambda,"=")), side=3, line=-3, at=0.5, cex=1)
-mtext(paste(round(lmbd, digits=2)), side=3, line=-3, at=1, cex=1)
-
-# Load annotation library
-library("pd.mogene.1.0.st.v1")
-library(mogene10sttranscriptcluster.db)
-library(annotate)
-annodb <- "mogene10sttranscriptcluster.db"
-ID<-rownames(top) # for the significant probes
-Symbol <- as.character(lookUp(ID, annodb, "SYMBOL"))
-Name   <- as.character(lookUp(ID, annodb, "GENENAME"))
-Entrez <- as.character(lookUp(ID, annodb, "ENTREZID"))
-top$Symbol<-Symbol
-top$Name<-Name
-top$Entrez<-Entrez
-head(top)
-
-# Write out to a file:
-write.csv(top,file="Tregs_Spleen_vs_Colon.csv")
-
-
-
-
-load("~/Bureau/EpiLandscape/wetransfer-40889c/E-GEOD-68009.raw.1/eset_Tregs.RData")
-
-top <- read.csv("~/Bureau/EpiLandscape/wetransfer-40889c/E-GEOD-68009.raw.1/Tregs_Spleen_vs_Colon.csv", row.names = 1, stringsAsFactors = F)
-
-Sel<-eset2[featureNames(eset2)%in%rownames(top), ]
-pData<- pData(Sel)
-classvec<-factor(pData$group)
-classvecCol <- palette(rainbow(6))[1:4]
-library(made4)
-heatplot(exprs(Sel), dend = "both", cols.default=T,
-         lowcol = "blue", highcol = "yellow",
-         classvec=classvec,classvecCol=classvecCol,
-         scale="none",scaleKey=FALSE,keysize = 1.3,
-         cexRow=0.1,cexCol=1,margin=c(12,15),
-         labRow=NULL, main="DEGs Tregs
-         Spleen vs. Colon (n= 1831)")
-
-
-
-library("pd.mogene.1.0.st.v1")
-library(mogene10sttranscriptcluster.db)
-library(annotate)
-annodb <- "mogene10sttranscriptcluster.db"
-
-my_exprs_Treg <- as.data.frame(exprs(Sel))
-ID<-rownames(my_exprs_Treg) # for the significant probes
-Symbol <- as.character(lookUp(ID, annodb, "SYMBOL"))
-Name   <- as.character(lookUp(ID, annodb, "GENENAME"))
-Entrez <- as.character(lookUp(ID, annodb, "ENTREZID"))
-my_exprs_Treg$Symbol<-Symbol
-my_exprs_Treg$Name<-Name
-my_exprs_Treg$Entrez<-Entrez
-#head(my_exprs_Treg)
-
-#dim(top)
-#dim(my_exprs_Treg)
-#intersect(top$Symbol, my_exprs_Treg$Symbol) # 1093 symbols
-
-
-
-source("http://faculty.ucr.edu/~tgirke/Documents/R_BioCond/My_R_Scripts/overLapper.R")
-
-setwd("~/Bureau/EpiLandscape/wetransfer-40889c")
-IEL <- read.csv("IEL_vs_All_FC2.csv", row.names = 1, stringsAsFactors = F)
-Naive <- read.csv("Naive_vs_All_FC2.csv", row.names = 1, stringsAsFactors = F)
-T17 <- read.csv("T17_vs_All_FC2.csv", row.names = 1, stringsAsFactors = F)
-Type1 <- read.csv("Type1_vs_All_FC2.csv", row.names = 1, stringsAsFactors = F)
-Tregs <- read.csv("~/Bureau/EpiLandscape/wetransfer-40889c/E-GEOD-68009.raw.1/Tregs_Spleen_vs_Colon.csv", row.names = 1, stringsAsFactors = F)
-
-
-df<-cbind(unique(IEL$Symbol),unique(Naive$Symbol),
-          unique(T17$Symbol),unique(Type1$Symbol), unique(Tregs$Symbol))
-df<-as.data.frame(df)
-colnames(df)<-c("IEL","Naive","T17","Type1","Treg")
-#head(df)
-OLlist <- overLapper(setlist=df, sep="", type="vennsets")
-#OLlist
-#names(OLlist)
-#par(mfrow=c(1,1))
-#olBarplot(OLlist=OLlist, horiz=T, las=1, cex.names=0.6, main="Venn Bar Plot", mincount=20)
-counts <- list(sapply(OLlist$Venn_List, length),
-               sapply(OLlist$Venn_List, length))
-par(mar=c(4,4,4,4))
-vennPlot(counts=counts, mymain="Venn diagram DEGs
-         each cell subtype vs. all comparison",
-         mysub="", yoffset=c(0, 0))
-#write.csv(as.character(OLlist$Venn_List$LeuEpi), file="DVMC_overlap.csv")
-
-
-
 
 
 
